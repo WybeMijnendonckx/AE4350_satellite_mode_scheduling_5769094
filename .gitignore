@@ -221,3 +221,4 @@ __marimo__/
 results/
 checkpoints/*
 !checkpoints/final_model.pt
+test_results/
