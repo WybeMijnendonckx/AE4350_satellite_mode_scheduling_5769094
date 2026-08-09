@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# extra
+results/
+checkpoints/*
+!checkpoints/final_model.pt
