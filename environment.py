@@ -26,7 +26,7 @@ OBS_SOC = 0
 OBS_BUFFER = 1
 OBS_ATTITUDE = slice(2, 5)          # current pointing unit vector (3)
 OBS_TARGET_ATTITUDE = slice(5, 8)   # commanded target unit vector (3)
-OBS_SLEW_PROGRESS = 8
+OBS_POINTING_ERROR_FRAC = 8
 OBS_ECLIPSE = 9
 OBS_GROUND_CONTACT = 10
 OBS_BATTERY_HEALTH = 11
@@ -138,11 +138,8 @@ class SpacecraftSchedulerEnv(gym.Env):
         buffer_noisy = buffer_frac + self._rng.normal(0, self.sc.buffer_sensor_noise_std)
         buffer_noisy = np.clip(buffer_noisy, 0.0, 1.0)
 
-        if self.slew_duration > 0.0:
-            progress = (self.t - self.slew_start_t) / self.slew_duration
-        else:
-            progress = 1.0
-        progress = float(np.clip(progress, 0.0, 1.0))
+        angle_to_target = np.rad2deg(np.arccos(np.clip(np.dot(self.current_attitude, self.target_attitude), -1, 1)))
+        pointing_error_frac = angle_to_target / 180.0
 
         time_frac = self.step_count / self.max_steps
 
@@ -151,7 +148,7 @@ class SpacecraftSchedulerEnv(gym.Env):
             [buffer_noisy],
             self.current_attitude,
             self.target_attitude,
-            [progress],
+            [pointing_error_frac],
             [float(geom["is_eclipse"])],
             [float(geom["is_ground_contact"])],
             [self.battery_health],
@@ -159,3 +156,10 @@ class SpacecraftSchedulerEnv(gym.Env):
             [time_frac],
         ]).astype(np.float32)
         return obs
+    
+    def get_action_mask(self, is_eclipse: bool) -> np.ndarray:
+        """Boolean mask over the 4 actions; False = unavailable this step.
+        Only Sun-pointing is masked because it is unavailable during eclipse."""
+        mask = np.ones(4, dtype=bool)
+        mask[Action.SUN_POINT] = not is_eclipse
+        return mask
