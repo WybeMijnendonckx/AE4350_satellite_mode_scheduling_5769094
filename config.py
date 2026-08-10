@@ -21,7 +21,7 @@ class GroundStationParams:
     longitude_deg: float = 5.15
     elevation_mask_deg: float = 10.0
     downlink_rate_mbps: float = 5.0
-    antenna_beamwidth_deg: float = 10.0   # half-angle acceptance cone
+    antenna_beamwidth_deg: float = 15.0   # half-angle acceptance cone
 
 
 @dataclass
