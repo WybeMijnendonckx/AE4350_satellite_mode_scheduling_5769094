@@ -81,7 +81,7 @@ def train(num_episodes: int = None, seed: int = None):
             obs = next_obs
             steps += 1
             episode_rewards.append(episode_reward)
-            
+
         episode_lengths.append(steps)
         episode_terminated.append(terminated)
         episode_final_battery_health.append(env.battery_health)
@@ -124,4 +124,4 @@ def train(num_episodes: int = None, seed: int = None):
 
 
 if __name__ == "__main__":
-    train()
+    train(num_episodes=50)
