@@ -80,3 +80,48 @@ def train(num_episodes: int = None, seed: int = None):
             episode_reward += reward
             obs = next_obs
             steps += 1
+            episode_rewards.append(episode_reward)
+            
+        episode_lengths.append(steps)
+        episode_terminated.append(terminated)
+        episode_final_battery_health.append(env.battery_health)
+        episode_final_epsilon.append(agent.epsilon)
+        episode_losses.append(np.mean(losses) if losses else np.nan)
+
+        if episode_reward > best_reward:
+            best_reward = episode_reward
+            agent.save(os.path.join(CHECKPOINT_DIR, "best_model.pt"))
+
+        if (episode + 1) % 50 == 0:
+            recent = episode_rewards[-50:]
+            print(
+                f"episode {episode + 1}/{train_params.num_episodes} | "
+                f"reward: {episode_reward:.1f} | "
+                f"mean(last 50): {np.mean(recent):.1f} | "
+                f"epsilon: {agent.epsilon:.3f} | "
+                f"terminated: {terminated} | "
+                f"battery_health: {env.battery_health:.3f}"
+            )
+
+    agent.save(os.path.join(CHECKPOINT_DIR, "final_model.pt"))
+
+    np.savez(
+        os.path.join(RESULTS_DIR, "training_metrics.npz"),
+        episode_rewards=np.array(episode_rewards),
+        episode_lengths=np.array(episode_lengths),
+        episode_terminated=np.array(episode_terminated),
+        episode_final_battery_health=np.array(episode_final_battery_health),
+        episode_final_epsilon=np.array(episode_final_epsilon),
+        episode_losses=np.array(episode_losses),
+    )
+
+    print(f"\nTraining complete. Best episode reward: {best_reward:.1f}")
+    print(f"Final model saved to {CHECKPOINT_DIR}/final_model.pt")
+    print(f"Best model saved to {CHECKPOINT_DIR}/best_model.pt")
+    print(f"Metrics saved to {RESULTS_DIR}/training_metrics.npz")
+
+    return agent, env
+
+
+if __name__ == "__main__":
+    train()

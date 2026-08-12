@@ -90,5 +90,5 @@ class RLParams:
 class TrainingParams:
     timestep_s: float = 30.0          # simulation timestep
     num_orbits_per_episode: int = 15  # about 1 day
-    num_episodes: int = 2000
+    num_episodes: int = 51
     seed: int = 42
