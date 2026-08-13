@@ -135,3 +135,59 @@ def run_sensitivity_sweep(param_specs: list, n_seeds: int = 3, num_episodes: int
                 results[f"{name}_{value}_seed{seed}"] = eval_stats
 
     return results
+
+def save_sweep_results(results: dict, path: str) -> None:
+    """Function to flatten the nested dict of dicts into one .npz file,
+    so the whole sweep is in one file for plotting.py to load once and slice by name."""
+    flat = {}
+    for run_key, stats in results.items():
+        for stat_name, arr in stats.items():
+            flat[f"{run_key}__{stat_name}"] = arr
+    np.savez(path, **flat)
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--sweep", action="store_true",
+                         help="also run the full sensitivity sweep (slow)") # about 15 hr runtime
+    args = parser.parse_args()
+
+    train_params = TrainingParams()
+    env = SpacecraftSchedulerEnv(OrbitParams(), GroundStationParams(), SpacecraftParams(), RewardParams(), train_params)
+    agent = load_agent(os.path.join(CHECKPOINT_DIR, "final_model.pt"))
+
+    print("Running detailed single-episode trajectory")
+    trajectory = run_episode(env, agent, seed=0, greedy=True)
+    np.savez(os.path.join(RESULTS_DIR, "example_trajectory.npz"), **trajectory)
+    print(f"Episode reward: {trajectory['total_reward']:.1f}, terminated: {bool(trajectory['terminated'])}")
+
+    print("\nRunning bulk greedy evaluation (20 episodes)")
+    eval_stats = evaluate_agent(agent, env, n_episodes=20)
+    print(f"Mean reward: {eval_stats['mean_reward']:.1f} +/- {eval_stats['std_reward']:.1f}")
+    np.savez(os.path.join(RESULTS_DIR, "eval_stats.npz"), **eval_stats)
+
+    if args.sweep:
+        print("\nRunning sensitivity sweep, run in the background.")
+        param_specs = [
+            {
+                "name": "solar_declination_deg", "group": "orbit",
+                "values": [-23.4, 0.0, 23.4],
+                "setter": lambda target, v: setattr(target, "solar_declination_deg", v),
+            },
+            {
+                "name": "elevation_mask_deg", "group": "gs",
+                "values": [5.0, 10.0, 20.0],
+                "setter": lambda target, v: setattr(target, "elevation_mask_deg", v),
+            },
+            {
+                "name": "battery_health_lower", "group": "sc",
+                "values": [0.5, 0.8, 0.95],
+                "setter": lambda target, v: setattr(target, "battery_health_range", (v, 1.0)),
+            },
+        ]
+        sweep_results = run_sensitivity_sweep(param_specs, n_seeds=3, num_episodes=500, n_eval_episodes=20)
+        save_sweep_results(sweep_results, os.path.join(RESULTS_DIR, "sensitivity_sweep.npz"))
+        print(f"\nSweep results saved to {RESULTS_DIR}/sensitivity_sweep.npz")
+    else:
+        print("\n(Skipping sensitivity sweep, pass --sweep to run it.)")

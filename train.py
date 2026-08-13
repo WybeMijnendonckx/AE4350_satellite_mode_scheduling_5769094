@@ -127,4 +127,5 @@ def train(num_episodes=None, seed=None, orbit_params=None, gs_params=None, sc_pa
 
 
 if __name__ == "__main__":
-    train(num_episodes=50)
+    print("Starting training")
+    train()
