@@ -72,3 +72,66 @@ def run_episode(env: SpacecraftSchedulerEnv, agent: DQNAgent, seed: int, greedy:
     log["terminated"] = terminated
     log["final_battery_health"] = env.battery_health
     return log
+
+def evaluate_agent(agent: DQNAgent, env: SpacecraftSchedulerEnv, n_episodes: int = 20, seed_base: int = 100) -> dict:
+    """Runs greedy episodes and returns summary per episode"""
+    rewards = []
+    terminated_flags = []
+    lengths = []
+    final_battery_healths = []
+
+    for i in range(n_episodes):
+        obs, info = env.reset(seed=seed_base + i)
+        terminated = False
+        truncated = False
+        ep_reward = 0.0
+        steps = 0
+
+        while not (terminated or truncated):
+            geom = env.propagator.get_geometry(env.t)
+            mask = env.get_action_mask(geom["is_eclipse"])
+            action = agent.select_action(obs, mask, greedy=True)
+            obs, reward, terminated, truncated, info = env.step(action)
+            ep_reward += reward
+            steps += 1
+
+        rewards.append(ep_reward)
+        terminated_flags.append(terminated)
+        lengths.append(steps)
+        final_battery_healths.append(env.battery_health)
+
+    return {
+        "rewards": np.array(rewards),
+        "terminated": np.array(terminated_flags),
+        "lengths": np.array(lengths),
+        "final_battery_health": np.array(final_battery_healths),
+        "mean_reward": np.mean(rewards),
+        "std_reward": np.std(rewards),
+    }
+
+
+def run_sensitivity_sweep(param_specs: list, n_seeds: int = 3, num_episodes: int = 500, n_eval_episodes: int = 20) -> dict:
+    """General-purpose sensitivity sweep"""
+    results = {}
+
+    for spec in param_specs:
+        name, group, values, setter = spec["name"], spec["group"], spec["values"], spec["setter"]
+
+        for value in values:
+            for seed in range(n_seeds):
+                print(f"\n=== sweep: {name}={value}, seed={seed} ===")
+
+                orbit_p, gs_p, sc_p = OrbitParams(), GroundStationParams(), SpacecraftParams()
+                target = {"orbit": orbit_p, "gs": gs_p, "sc": sc_p}[group]
+                setter(target, value)
+
+                sweep_agent, sweep_env = train(
+                    num_episodes=num_episodes, seed=seed,
+                    orbit_params=orbit_p, gs_params=gs_p, sc_params=sc_p,
+                    save_checkpoints=False,
+                )
+                eval_stats = evaluate_agent(sweep_agent, sweep_env, n_episodes=n_eval_episodes)
+
+                results[f"{name}_{value}_seed{seed}"] = eval_stats
+
+    return results

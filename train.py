@@ -21,17 +21,17 @@ CHECKPOINT_DIR = "checkpoints"
 RESULTS_DIR = "results"
 
 
-def make_env(train_params: TrainingParams) -> SpacecraftSchedulerEnv:
+def make_env(train_params, orbit_params=None, gs_params=None, sc_params=None, reward_params=None):
     return SpacecraftSchedulerEnv(
-        OrbitParams(),
-        GroundStationParams(),
-        SpacecraftParams(),
-        RewardParams(),
+        orbit_params or OrbitParams(),
+        gs_params or GroundStationParams(),
+        sc_params or SpacecraftParams(),
+        reward_params or RewardParams(),
         train_params,
     )
 
 
-def train(num_episodes: int = None, seed: int = None):
+def train(num_episodes=None, seed=None, orbit_params=None, gs_params=None, sc_params=None, reward_params=None, save_checkpoints: bool = True):
     train_params = TrainingParams()
     if num_episodes is not None:
         train_params.num_episodes = num_episodes
@@ -40,7 +40,7 @@ def train(num_episodes: int = None, seed: int = None):
 
     np.random.seed(train_params.seed)
 
-    env = make_env(train_params)
+    env = make_env(train_params, orbit_params, gs_params, sc_params, reward_params)
     rl_params = RLParams()
     agent = DQNAgent(obs_dim=OBS_DIM, n_actions=env.action_space.n, rl_params=rl_params)
 
@@ -90,7 +90,8 @@ def train(num_episodes: int = None, seed: int = None):
 
         if episode_reward > best_reward:
             best_reward = episode_reward
-            agent.save(os.path.join(CHECKPOINT_DIR, "best_model.pt"))
+            if save_checkpoints:
+                agent.save(os.path.join(CHECKPOINT_DIR, "best_model.pt"))
 
         if (episode + 1) % 50 == 0:
             recent = episode_rewards[-50:]
@@ -103,22 +104,24 @@ def train(num_episodes: int = None, seed: int = None):
                 f"battery_health: {env.battery_health:.3f}"
             )
 
-    agent.save(os.path.join(CHECKPOINT_DIR, "final_model.pt"))
-
-    np.savez(
-        os.path.join(RESULTS_DIR, "training_metrics.npz"),
-        episode_rewards=np.array(episode_rewards),
-        episode_lengths=np.array(episode_lengths),
-        episode_terminated=np.array(episode_terminated),
-        episode_final_battery_health=np.array(episode_final_battery_health),
-        episode_final_epsilon=np.array(episode_final_epsilon),
-        episode_losses=np.array(episode_losses),
-    )
-
     print(f"\nTraining complete. Best episode reward: {best_reward:.1f}")
-    print(f"Final model saved to {CHECKPOINT_DIR}/final_model.pt")
-    print(f"Best model saved to {CHECKPOINT_DIR}/best_model.pt")
-    print(f"Metrics saved to {RESULTS_DIR}/training_metrics.npz")
+
+    if save_checkpoints:
+        agent.save(os.path.join(CHECKPOINT_DIR, "final_model.pt"))
+
+        np.savez(
+            os.path.join(RESULTS_DIR, "training_metrics.npz"),
+            episode_rewards=np.array(episode_rewards),
+            episode_lengths=np.array(episode_lengths),
+            episode_terminated=np.array(episode_terminated),
+            episode_final_battery_health=np.array(episode_final_battery_health),
+            episode_final_epsilon=np.array(episode_final_epsilon),
+            episode_losses=np.array(episode_losses),
+        )
+
+        print(f"Final model saved to {CHECKPOINT_DIR}/final_model.pt")
+        print(f"Best model saved to {CHECKPOINT_DIR}/best_model.pt")
+        print(f"Metrics saved to {RESULTS_DIR}/training_metrics.npz")
 
     return agent, env
 
