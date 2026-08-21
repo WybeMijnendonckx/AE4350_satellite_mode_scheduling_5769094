@@ -80,8 +80,8 @@ def train(num_episodes=None, seed=None, orbit_params=None, gs_params=None, sc_pa
             episode_reward += reward
             obs = next_obs
             steps += 1
-            episode_rewards.append(episode_reward)
 
+        episode_rewards.append(episode_reward)
         episode_lengths.append(steps)
         episode_terminated.append(terminated)
         episode_final_battery_health.append(env.battery_health)
