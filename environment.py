@@ -259,5 +259,6 @@ class SpacecraftSchedulerEnv(gym.Env):
             "is_slewing": is_slewing,
             "data_downlinked_mb": data_downlinked_mb,
             "action_mask": mask,
+            "soc_frac": soc_frac,
         }
         return obs, reward, terminated, truncated, info

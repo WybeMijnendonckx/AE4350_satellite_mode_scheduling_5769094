@@ -68,7 +68,7 @@ class RewardParams:
     learning to store data in the buffer instead of actually returning it to the ground).
     """
     reward_per_mb_downlinked: float = 0.001
-    imaging_shaping_bonus: float = 0.0000          # deliberately zero by default, can be changed to encourage imaging if desired
+    imaging_shaping_bonus: float = 0.00005          # zero by default, increased to encourage imaging
     terminal_penalty_hard_floor: float = -10.0  # on mission-loss termination, change with sensitivity analysis if desired
 
 

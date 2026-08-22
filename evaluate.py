@@ -41,6 +41,7 @@ def run_episode(env: SpacecraftSchedulerEnv, agent: DQNAgent, seed: int, greedy:
         "t": [], "soc_frac": [], "buffer_frac": [], "attitude": [],
         "imaging_active": [], "downlink_active": [], "charging_power_w": [],
         "is_eclipse": [], "is_ground_contact": [], "reward": [], "action": [],
+        "battery_health": [],
     }
 
     terminated = False
@@ -55,7 +56,7 @@ def run_episode(env: SpacecraftSchedulerEnv, agent: DQNAgent, seed: int, greedy:
 
         effective_capacity = env.sc.battery_capacity_wh * env.battery_health
         log["t"].append(env.t)
-        log["soc_frac"].append(env.soc_wh / effective_capacity)
+        log["soc_frac"].append(info["soc_frac"])
         log["buffer_frac"].append(env.buffer_mb / env.sc.buffer_capacity_mb)
         log["attitude"].append(env.current_attitude.copy())
         log["imaging_active"].append(info["imaging_active"])
@@ -65,6 +66,7 @@ def run_episode(env: SpacecraftSchedulerEnv, agent: DQNAgent, seed: int, greedy:
         log["is_ground_contact"].append(geom["is_ground_contact"])
         log["reward"].append(reward)
         log["action"].append(int(action))
+        log["battery_health"].append(env.battery_health)
 
         total_reward += reward
         obs = next_obs

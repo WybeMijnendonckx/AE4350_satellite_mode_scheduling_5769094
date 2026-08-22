@@ -65,11 +65,12 @@ def plot_orbit_geometry(output_path, orbit_params=None, gs_params=None, n_orbits
         plt.show()
     plt.close()
 
-def plot_episode_trajectory(trajectory_path, output_path, battery_safety_floor_frac=None, show=False):
+def plot_episode_trajectory(trajectory_path, output_path, battery_safety_floor_frac=None, battery_health_hard_floor=None, show=False):
     data = np.load(trajectory_path)
     t_hours = data["t"] / 3600.0
     soc_frac = data["soc_frac"]
     buffer_frac = data["buffer_frac"]
+    battery_health = data["battery_health"]
     imaging_active = data["imaging_active"]
     downlink_active = data["downlink_active"]
     charging_power_w = data["charging_power_w"]
@@ -84,26 +85,30 @@ def plot_episode_trajectory(trajectory_path, output_path, battery_safety_floor_f
     ax = axes[0]
     ax.fill_between(t_hours, 0, 1, where=is_eclipse, color="navy", alpha=0.12,
                      transform=ax.get_xaxis_transform(), label="eclipse")
-    ax.plot(t_hours, soc_frac, color="tab:blue", label="SOC (fraction of capacity)")
+    ax.plot(t_hours, soc_frac, color="tab:red", label="SOC (fraction of capacity)")
     ax.plot(t_hours, buffer_frac, color="tab:orange", label="Buffer fill (fraction of capacity)")
+    ax.plot(t_hours, battery_health, color="darkred", linewidth=1.5, label="Battery health (degradation)")
     if battery_safety_floor_frac is not None:
         ax.axhline(battery_safety_floor_frac, color="red", linestyle="--",
                    linewidth=0.8, label="battery safety floor")
+    if battery_health_hard_floor is not None:
+        ax.axhline(battery_health_hard_floor, color="darkred", linestyle=":",
+                   linewidth=1.2, label="battery hard floor (mission loss)")
     ax.set_ylabel("Fraction")
     ax.set_ylim(-0.02, 1.05)
-    ax.legend(loc="upper right", fontsize=8)
+    ax.legend(loc="best", fontsize=8)
     ax.set_title(f"Episode trajectory (total reward={total_reward:.0f}, terminated={terminated})")
 
     ax = axes[1]
-    ax.fill_between(t_hours, 0, 2, where=is_ground_contact, color="gold", alpha=0.15,
-                     transform=ax.get_xaxis_transform(), label="ground contact")
+    ax.fill_between(t_hours, 2, 3, where=is_ground_contact, step="mid", alpha=0.6,
+                     color="gold", label="ground contact")
     ax.fill_between(t_hours, 0, 1, where=imaging_active, step="mid", color="seagreen",
                      alpha=0.6, label="imaging active")
     ax.fill_between(t_hours, 1, 2, where=downlink_active, step="mid", color="purple",
                      alpha=0.6, label="downlink active")
-    ax.set_yticks([0.5, 1.5])
-    ax.set_yticklabels(["imaging", "downlink"])
-    ax.legend(loc="upper right", fontsize=8)
+    ax.set_yticks([0.5, 1.5, 2.5])
+    ax.set_yticklabels(["imaging", "downlink", 'ground contact'])
+    ax.legend(loc="upper left", fontsize=8)
 
     ax = axes[2]
     ax.plot(t_hours, charging_power_w, color="darkgreen")
@@ -125,5 +130,5 @@ if __name__ == "__main__":
     plot_rewards("results/training_metrics_unshaped.npz", "plot_results/training_progress_unshaped.pdf", roll=50, show=False)
     plot_rewards("results/training_metrics_shaped.npz", "plot_results/training_progress_shaped.pdf", roll=50, show=False)
     plot_orbit_geometry("plot_results/orbit_geometry_check.pdf", n_orbits=30, show=False)
-    plot_episode_trajectory("results/example_trajectory_unshaped.npz", "plot_results/example_trajectory_unshaped.pdf", battery_safety_floor_frac=SpacecraftParams().battery_safety_floor_frac, show=True)
-    plot_episode_trajectory("results/example_trajectory_shaped.npz", "plot_results/example_trajectory_shaped.pdf", battery_safety_floor_frac=SpacecraftParams().battery_safety_floor_frac, show=True)
+    plot_episode_trajectory("results/example_trajectory_unshaped.npz", "plot_results/example_trajectory_unshaped.pdf", battery_safety_floor_frac=SpacecraftParams().battery_safety_floor_frac, battery_health_hard_floor=SpacecraftParams().battery_health_hard_floor, show=True)
+    plot_episode_trajectory("results/example_trajectory_shaped.npz", "plot_results/example_trajectory_shaped.pdf", battery_safety_floor_frac=SpacecraftParams().battery_safety_floor_frac, battery_health_hard_floor=SpacecraftParams().battery_health_hard_floor, show=True)
