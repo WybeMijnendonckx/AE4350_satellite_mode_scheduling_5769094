@@ -22,6 +22,8 @@ from environment import SpacecraftSchedulerEnv, OBS_DIM
 from agent import DQNAgent
 from train import train, CHECKPOINT_DIR, RESULTS_DIR
 
+run_name = "unshaped"  # default run name for saving results
+load_file_name = f"final_model_{run_name}.pt"  # default checkpoint to load for evaluation
 
 def load_agent(checkpoint_path: str, rl_params: RLParams = None) -> DQNAgent:
     """Loads a trained Q-network into a DQNAgent, ready for greedy evaluation"""
@@ -155,17 +157,17 @@ if __name__ == "__main__":
 
     train_params = TrainingParams()
     env = SpacecraftSchedulerEnv(OrbitParams(), GroundStationParams(), SpacecraftParams(), RewardParams(), train_params)
-    agent = load_agent(os.path.join(CHECKPOINT_DIR, "final_model.pt"))
+    agent = load_agent(os.path.join(CHECKPOINT_DIR, load_file_name))
 
     print("Running detailed single-episode trajectory")
     trajectory = run_episode(env, agent, seed=0, greedy=True)
-    np.savez(os.path.join(RESULTS_DIR, "example_trajectory.npz"), **trajectory)
+    np.savez(os.path.join(RESULTS_DIR, f"example_trajectory_{run_name}.npz"), **trajectory)
     print(f"Episode reward: {trajectory['total_reward']:.1f}, terminated: {bool(trajectory['terminated'])}")
 
     print("\nRunning bulk greedy evaluation (20 episodes)")
     eval_stats = evaluate_agent(agent, env, n_episodes=20)
     print(f"Mean reward: {eval_stats['mean_reward']:.1f} +/- {eval_stats['std_reward']:.1f}")
-    np.savez(os.path.join(RESULTS_DIR, "eval_stats.npz"), **eval_stats)
+    np.savez(os.path.join(RESULTS_DIR, f"eval_stats_{run_name}.npz"), **eval_stats)
 
     if args.sweep:
         print("\nRunning sensitivity sweep, run in the background.")
@@ -187,7 +189,7 @@ if __name__ == "__main__":
             },
         ]
         sweep_results = run_sensitivity_sweep(param_specs, n_seeds=3, num_episodes=500, n_eval_episodes=20)
-        save_sweep_results(sweep_results, os.path.join(RESULTS_DIR, "sensitivity_sweep.npz"))
-        print(f"\nSweep results saved to {RESULTS_DIR}/sensitivity_sweep.npz")
+        save_sweep_results(sweep_results, os.path.join(RESULTS_DIR, f"sensitivity_sweep_{run_name}.npz"))
+        print(f"\nSweep results saved to {RESULTS_DIR}/sensitivity_sweep_{run_name}.npz")
     else:
         print("\n(Skipping sensitivity sweep, pass --sweep to run it.)")

@@ -222,3 +222,4 @@ results/
 checkpoints/*
 !checkpoints/final_model*
 test_results/
+plot_results/

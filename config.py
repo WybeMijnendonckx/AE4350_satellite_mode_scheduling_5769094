@@ -20,7 +20,7 @@ class GroundStationParams:
     latitude_deg: float = 50.00
     longitude_deg: float = 5.15
     elevation_mask_deg: float = 10.0
-    downlink_rate_mbps: float = 5.0
+    downlink_rate_mbps: float = 50.0
     antenna_beamwidth_deg: float = 15.0   # half-angle acceptance cone
 
 
@@ -31,13 +31,13 @@ class SpacecraftParams:
     battery_safety_floor_frac: float = 0.20   # min allowed SOC (DoD margin)
 
     # data storage
-    buffer_capacity_mb: float = 4000.0
-    imaging_data_rate_mbps: float = 20.0      # data generated while imaging
+    buffer_capacity_mb: float = 30000.0
+    imaging_data_rate_mbps: float = 5.0      # data generated while imaging
 
     # power draw per mode or activity in Watts (housekeeping is always-on baseline)
     power_housekeeping_w: float = 5.0
     power_imaging_w: float = 12.0             # additional draw while imaging
-    power_downlink_w: float = 18.0            # additional draw while transmitting
+    power_downlink_w: float =25.0            # additional draw while transmitting
     power_charging_max_w: float = 25.0        # peak solar input, scaled by cosine of sun angle
     power_slew_w: float = 8.0                 # reaction-wheel draw while actively slewing
 
@@ -67,9 +67,9 @@ class RewardParams:
     shaping term, not a reward source (this will avoid the agent
     learning to store data in the buffer instead of actually returning it to the ground).
     """
-    reward_per_mb_downlinked: float = 1.0
-    imaging_shaping_bonus: float = 0.05          # deliberately zero by default, can be changed to encourage imaging if desired
-    terminal_penalty_hard_floor: float = -500.0  # on mission-loss termination, change with sensitivity analysis if desired
+    reward_per_mb_downlinked: float = 0.001
+    imaging_shaping_bonus: float = 0.0000          # deliberately zero by default, can be changed to encourage imaging if desired
+    terminal_penalty_hard_floor: float = -10.0  # on mission-loss termination, change with sensitivity analysis if desired
 
 
 

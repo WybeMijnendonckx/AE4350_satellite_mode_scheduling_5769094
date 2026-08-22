@@ -6,6 +6,9 @@ Runs training loop and saves model checkpoints.
 import os
 import numpy as np
 
+import random
+import torch
+
 from config import (
     OrbitParams,
     GroundStationParams,
@@ -31,7 +34,7 @@ def make_env(train_params, orbit_params=None, gs_params=None, sc_params=None, re
     )
 
 
-def train(num_episodes=None, seed=None, orbit_params=None, gs_params=None, sc_params=None, reward_params=None, save_checkpoints: bool = True):
+def train(num_episodes=None, seed=None, orbit_params=None, gs_params=None, sc_params=None, reward_params=None, save_checkpoints: bool = True, run_name: str = "default_run"):
     train_params = TrainingParams()
     if num_episodes is not None:
         train_params.num_episodes = num_episodes
@@ -39,6 +42,8 @@ def train(num_episodes=None, seed=None, orbit_params=None, gs_params=None, sc_pa
         train_params.seed = seed
 
     np.random.seed(train_params.seed)
+    random.seed(train_params.seed)
+    torch.manual_seed(train_params.seed)
 
     env = make_env(train_params, orbit_params, gs_params, sc_params, reward_params)
     rl_params = RLParams()
@@ -91,7 +96,7 @@ def train(num_episodes=None, seed=None, orbit_params=None, gs_params=None, sc_pa
         if episode_reward > best_reward:
             best_reward = episode_reward
             if save_checkpoints:
-                agent.save(os.path.join(CHECKPOINT_DIR, "best_model.pt"))
+                agent.save(os.path.join(CHECKPOINT_DIR, f"best_model_{run_name}.pt"))
 
         if (episode + 1) % 50 == 0:
             recent = episode_rewards[-50:]
@@ -107,10 +112,10 @@ def train(num_episodes=None, seed=None, orbit_params=None, gs_params=None, sc_pa
     print(f"\nTraining complete. Best episode reward: {best_reward:.1f}")
 
     if save_checkpoints:
-        agent.save(os.path.join(CHECKPOINT_DIR, "final_model.pt"))
+        agent.save(os.path.join(CHECKPOINT_DIR, f"final_model_{run_name}.pt"))
 
         np.savez(
-            os.path.join(RESULTS_DIR, "training_metrics.npz"),
+            os.path.join(RESULTS_DIR, f"training_metrics_{run_name}.npz"),
             episode_rewards=np.array(episode_rewards),
             episode_lengths=np.array(episode_lengths),
             episode_terminated=np.array(episode_terminated),
@@ -119,13 +124,15 @@ def train(num_episodes=None, seed=None, orbit_params=None, gs_params=None, sc_pa
             episode_losses=np.array(episode_losses),
         )
 
-        print(f"Final model saved to {CHECKPOINT_DIR}/final_model.pt")
-        print(f"Best model saved to {CHECKPOINT_DIR}/best_model.pt")
-        print(f"Metrics saved to {RESULTS_DIR}/training_metrics.npz")
+        print(f"Final model saved to {CHECKPOINT_DIR}/final_model_{run_name}.pt")
+        print(f"Best model saved to {CHECKPOINT_DIR}/best_model_{run_name}.pt")
+        print(f"Metrics saved to {RESULTS_DIR}/training_metrics_{run_name}.npz")
 
     return agent, env
 
 
 if __name__ == "__main__":
     print("Starting training")
-    train()
+    train(run_name="unshaped", reward_params=RewardParams(imaging_shaping_bonus=0.0))
+    train(run_name="shaped", reward_params=RewardParams(imaging_shaping_bonus=0.00005))
+    print("Training complete")
