@@ -149,6 +149,41 @@ def save_sweep_results(results: dict, path: str) -> None:
             flat[f"{run_key}__{stat_name}"] = arr
     np.savez(path, **flat)
 
+def compare_shaping(unshaped_checkpoint: str, shaped_checkpoint: str,
+                     output_path: str = "results/shaping_ablation.npz",
+                     n_episodes: int = 50, seed_base: int = 1000) -> None:
+    """Runs a comparison of the shaped vs unshaped reward functions, saving the results to a .npz file"""
+    def _collect(checkpoint_path):
+        env = SpacecraftSchedulerEnv(OrbitParams(), GroundStationParams(),
+                                      SpacecraftParams(), RewardParams(), TrainingParams())
+        agent = load_agent(checkpoint_path)
+
+        downlinked, terminated_flags = [], []
+        for i in range(n_episodes):
+            obs, info = env.reset(seed=seed_base + i)
+            terminated = truncated = False
+            total_mb = 0.0
+            while not (terminated or truncated):
+                geom = env.propagator.get_geometry(env.t)
+                mask = env.get_action_mask(geom["is_eclipse"])
+                action = agent.select_action(obs, mask, greedy=True)
+                obs, reward, terminated, truncated, info = env.step(action)
+                total_mb += info["data_downlinked_mb"]
+            downlinked.append(total_mb)
+            terminated_flags.append(terminated)
+        return np.array(downlinked), np.array(terminated_flags)
+    
+    unshaped_mb, unshaped_terminated = _collect(unshaped_checkpoint)
+    shaped_mb, shaped_terminated = _collect(shaped_checkpoint)
+
+    np.savez(
+        output_path,
+        unshaped_downlinked_mb=unshaped_mb,
+        unshaped_terminated=unshaped_terminated,
+        shaped_downlinked_mb=shaped_mb,
+        shaped_terminated=shaped_terminated,
+    )
+    return
 
 if __name__ == "__main__":
     import argparse
@@ -170,6 +205,9 @@ if __name__ == "__main__":
     eval_stats = evaluate_agent(agent, env, n_episodes=20)
     print(f"Mean reward: {eval_stats['mean_reward']:.1f} +/- {eval_stats['std_reward']:.1f}")
     np.savez(os.path.join(RESULTS_DIR, f"eval_stats_{run_name}.npz"), **eval_stats)
+
+    print("\nRunning shaped vs unshaped reward comparison")
+    compare_shaping("checkpoints/final_model_unshaped.pt", "checkpoints/final_model_shaped.pt")
 
     if args.sweep:
         print("\nRunning sensitivity sweep, run in the background.")

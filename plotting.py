@@ -126,9 +126,40 @@ def plot_episode_trajectory(trajectory_path, output_path, battery_safety_floor_f
         plt.show()
     plt.close()
 
+def plot_shaping_comparison(comparison_path, output_path, show=False):
+    data = np.load(comparison_path)
+    unshaped_mb = data["unshaped_downlinked_mb"]
+    shaped_mb = data["shaped_downlinked_mb"]
+    unshaped_terminated = data["unshaped_terminated"]
+    shaped_terminated = data["shaped_terminated"]
+
+    labels = ["Unshaped\n(bonus=0.0)", "Shaped\n(bonus>0.0)"]
+    means = [unshaped_mb.mean(), shaped_mb.mean()]
+    stds = [unshaped_mb.std(), shaped_mb.std()]
+    term_rates = [unshaped_terminated.mean() * 100, shaped_terminated.mean() * 100]
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.5))
+
+    ax1.bar(labels, means, yerr=stds, capsize=6, color=["tab:gray", "tab:blue"])
+    ax1.set_ylabel("Data downlinked per episode [Mb]")
+    ax1.set_title("True science return (mean \u00b1 std)")
+
+    ax2.bar(labels, term_rates, color=["tab:gray", "tab:blue"])
+    ax2.set_ylabel("Termination rate [%]")
+    ax2.set_title("Hard battery-floor failures")
+    ax2.set_ylim(0, max(100, max(term_rates) * 1.2 + 1))
+
+    plt.tight_layout()
+    plt.savefig(output_path)
+    if show:
+        plt.show()
+    plt.close()
+
+
 if __name__ == "__main__":
     plot_rewards("results/training_metrics_unshaped.npz", "plot_results/training_progress_unshaped.pdf", roll=50, show=False)
     plot_rewards("results/training_metrics_shaped.npz", "plot_results/training_progress_shaped.pdf", roll=50, show=False)
     plot_orbit_geometry("plot_results/orbit_geometry_check.pdf", n_orbits=30, show=False)
     plot_episode_trajectory("results/example_trajectory_unshaped.npz", "plot_results/example_trajectory_unshaped.pdf", battery_safety_floor_frac=SpacecraftParams().battery_safety_floor_frac, battery_health_hard_floor=SpacecraftParams().battery_health_hard_floor, show=True)
     plot_episode_trajectory("results/example_trajectory_shaped.npz", "plot_results/example_trajectory_shaped.pdf", battery_safety_floor_frac=SpacecraftParams().battery_safety_floor_frac, battery_health_hard_floor=SpacecraftParams().battery_health_hard_floor, show=True)
+    plot_shaping_comparison("results/shaping_ablation.npz", "plot_results/shaping_comparison.pdf", show=True)
