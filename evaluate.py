@@ -22,7 +22,7 @@ from environment import SpacecraftSchedulerEnv, OBS_DIM
 from agent import DQNAgent
 from train import train, CHECKPOINT_DIR, RESULTS_DIR
 
-run_name = "unshaped"  # default run name for saving results
+run_name = "shaped"  # run name for saving results
 load_file_name = f"final_model_{run_name}.pt"  # default checkpoint to load for evaluation
 
 def load_agent(checkpoint_path: str, rl_params: RLParams = None) -> DQNAgent:

@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from orbital_dynamics import OrbitPropagator, orbital_period_s
 from config import OrbitParams, GroundStationParams, SpacecraftParams
+import re
 
 def plot_rewards(datafile, output_path, roll=50, show=False):
     data = np.load(datafile)
@@ -94,6 +95,7 @@ def plot_episode_trajectory(trajectory_path, output_path, battery_safety_floor_f
     if battery_health_hard_floor is not None:
         ax.axhline(battery_health_hard_floor, color="darkred", linestyle=":",
                    linewidth=1.2, label="battery hard floor (mission loss)")
+    ax.axhline(1, color="gray", linewidth=0.5, linestyle="--")
     ax.set_ylabel("Fraction")
     ax.set_ylim(-0.02, 1.05)
     ax.legend(loc="best", fontsize=8)
@@ -155,6 +157,50 @@ def plot_shaping_comparison(comparison_path, output_path, show=False):
         plt.show()
     plt.close()
 
+def plot_sensitivity_sweep(sensitivity_path, output_path, show=False):
+    data = np.load(sensitivity_path)
+    key_pattern = re.compile(r"^(.+)_(-?\d+(?:\.\d+)?)_seed(\d+)__(.+)$")
+    grouped = {}
+    for key in data.files:
+        m = key_pattern.match(key)
+        if m is None:
+            continue
+        name, value_str, seed_str, stat_name = m.groups()
+        if stat_name != "mean_reward":
+            continue  # only needs the per run mean here, std_reward was within run, not across the seed
+        value = float(value_str)
+        seed = int(seed_str)
+        grouped.setdefault(name, {}).setdefault(value, {})[seed] = float(data[key])
+
+    param_names = sorted(grouped.keys())
+    n_params = len(param_names)
+    if n_params == 0:
+        raise ValueError(f"No sweep keys matched the expected pattern in {sensitivity_path}")
+
+    fig, axes = plt.subplots(1, n_params, figsize=(5 * n_params, 4.5))
+    if n_params == 1:
+        axes = [axes]
+
+    for ax, name in zip(axes, param_names):
+        values = sorted(grouped[name].keys())
+        means = []
+        stds = []
+        for v in values:
+            seed_means = np.array(list(grouped[name][v].values()))
+            means.append(seed_means.mean())
+            stds.append(seed_means.std())
+
+        ax.errorbar(values, means, yerr=stds, marker="o", capsize=4, color="tab:blue")
+        ax.set_xlabel(name)
+        ax.set_ylabel("Mean reward (across seeds)")
+        ax.set_title(name)
+
+    plt.tight_layout()
+    plt.savefig(output_path)
+    if show:
+        plt.show()
+    plt.close()
+
 
 if __name__ == "__main__":
     plot_rewards("results/training_metrics_unshaped.npz", "plot_results/training_progress_unshaped.pdf", roll=50, show=False)
@@ -163,3 +209,4 @@ if __name__ == "__main__":
     plot_episode_trajectory("results/example_trajectory_unshaped.npz", "plot_results/example_trajectory_unshaped.pdf", battery_safety_floor_frac=SpacecraftParams().battery_safety_floor_frac, battery_health_hard_floor=SpacecraftParams().battery_health_hard_floor, show=True)
     plot_episode_trajectory("results/example_trajectory_shaped.npz", "plot_results/example_trajectory_shaped.pdf", battery_safety_floor_frac=SpacecraftParams().battery_safety_floor_frac, battery_health_hard_floor=SpacecraftParams().battery_health_hard_floor, show=True)
     plot_shaping_comparison("results/shaping_ablation.npz", "plot_results/shaping_comparison.pdf", show=True)
+    plot_sensitivity_sweep("results/sensitivity_sweep.npz", "plot_results/sensitivity_sweep.pdf", show=True)
