@@ -35,29 +35,20 @@ def plot_orbit_geometry(output_path, orbit_params=None, gs_params=None, n_orbits
     contact_flags = np.array([prop.is_ground_contact(t) for t in ts])
     elevations = np.array([prop.elevation_deg(t) for t in ts])
 
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
+    plt.figure(figsize=(10, 6))
 
-    ax1.plot(t_min, elevations, color="black", linewidth=1)
-    ax1.axhline(gs_params.elevation_mask_deg, color="gray", linestyle="--",
+    plt.plot(t_min, elevations, color="black", linewidth=1)
+    plt.axhline(gs_params.elevation_mask_deg, color="gray", linestyle="--",
                 linewidth=0.8, label="elevation mask")
-    ax1.fill_between(t_min, -90, 90, where=eclipse_flags, color="navy",
+    plt.fill_between(t_min, -90, 90, where=eclipse_flags, color="navy",
                       alpha=0.2, label="eclipse")
-    ax1.fill_between(t_min, -90, 90, where=contact_flags, color="orange",
+    plt.fill_between(t_min, -90, 90, where=contact_flags, color="orange",
                       alpha=0.4, label="ground contact")
-    ax1.set_ylabel(f"Elevation to {gs_params.name} [deg]")
-    ax1.set_ylim(-90, 90)
-    ax1.legend(loc="upper right", fontsize=8)
-    ax1.set_title(f"Orbit geometry over {n_orbits} orbit(s) "
+    plt.ylabel(f"Elevation to {gs_params.name} [deg]")
+    plt.ylim(-90, 90)
+    plt.legend(loc="upper right", fontsize=8)
+    plt.title(f"Orbit geometry over {n_orbits} orbit(s) "
                   f"(T = {T/60:.2f} min), {orbit_params.altitude_km:.0f} km SSO")
-
-    ax2.fill_between(t_min, 0, 1, where=eclipse_flags, step="mid",
-                      color="navy", alpha=0.5, label="eclipse")
-    ax2.fill_between(t_min, 1, 2, where=contact_flags, step="mid",
-                      color="orange", alpha=0.5, label="ground contact")
-    ax2.set_yticks([0.5, 1.5])
-    ax2.set_yticklabels(["eclipse", "contact"])
-    ax2.set_xlabel("Time [min]")
-    ax2.legend(loc="upper right", fontsize=8)
 
     plt.tight_layout()
     plt.legend()
@@ -205,7 +196,7 @@ def plot_sensitivity_sweep(sensitivity_path, output_path, show=False):
 if __name__ == "__main__":
     plot_rewards("results/training_metrics_unshaped.npz", "plot_results/training_progress_unshaped.pdf", roll=50, show=False)
     plot_rewards("results/training_metrics_shaped.npz", "plot_results/training_progress_shaped.pdf", roll=50, show=False)
-    plot_orbit_geometry("plot_results/orbit_geometry_check.pdf", n_orbits=30, show=False)
+    plot_orbit_geometry("plot_results/orbit_geometry_check.pdf", n_orbits=15, show=False)
     plot_episode_trajectory("results/example_trajectory_unshaped.npz", "plot_results/example_trajectory_unshaped.pdf", battery_safety_floor_frac=SpacecraftParams().battery_safety_floor_frac, battery_health_hard_floor=SpacecraftParams().battery_health_hard_floor, show=True)
     plot_episode_trajectory("results/example_trajectory_shaped.npz", "plot_results/example_trajectory_shaped.pdf", battery_safety_floor_frac=SpacecraftParams().battery_safety_floor_frac, battery_health_hard_floor=SpacecraftParams().battery_health_hard_floor, show=True)
     plot_shaping_comparison("results/shaping_ablation.npz", "plot_results/shaping_comparison.pdf", show=True)
