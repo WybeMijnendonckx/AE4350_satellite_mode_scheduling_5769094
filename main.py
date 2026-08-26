@@ -1,29 +1,16 @@
 """main.py
 
 used for random tests and debugging experiments, not part of the 
-main training/evaluation pipeline.
+main training/evaluation pipeline. Needs to be cleaned up for proper use.
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
-
-from orbital_dynamics import OrbitPropagator, orbital_period_s
 from config import OrbitParams, GroundStationParams, SpacecraftParams, RewardParams, TrainingParams
-
-from evaluate import load_agent, evaluate_agent
+from evaluate import load_agent
 from environment import SpacecraftSchedulerEnv
+import re
 
 
-orbit_params = OrbitParams()  
-gs_params = GroundStationParams()
-
-env = SpacecraftSchedulerEnv(OrbitParams(), GroundStationParams(), SpacecraftParams(), RewardParams(), TrainingParams())
-agent = load_agent("checkpoints/final_model_unshaped.pt")
-
-stats = evaluate_agent(agent, env, n_episodes=50)
-print(f"\nmean reward: {stats['mean_reward']:.1f} +/- {stats['std_reward']:.1f}")
-print(f"terminated (hard battery floor) fraction: {stats['terminated'].mean():.4%}")
-print(f"reward distribution: min={stats['rewards'].min():.0f}, max={stats['rewards'].max():.0f}")
 
 def true_downlinked_data(checkpoint_path, n_episodes=50):
     env = SpacecraftSchedulerEnv(OrbitParams(), GroundStationParams(), SpacecraftParams(), RewardParams(), TrainingParams())
@@ -46,53 +33,81 @@ def true_downlinked_data(checkpoint_path, n_episodes=50):
           f"min={totals.min():.1f}, max={totals.max():.1f}")
     return totals
 
-print("\nShaped (0.00005):")
-true_downlinked_data("checkpoints/final_model_shaped.pt")  
-print("Unshaped (0.0):")
-true_downlinked_data("checkpoints/final_model_unshaped.pt")
+
+def training_termination_rates(results_dir="results"):
+    print("=== Training termination rate (epsilon-greedy, all 1000 episodes) ===")
+    for run_name in ["shaped", "unshaped"]:
+        d = np.load(f"{results_dir}/training_metrics_{run_name}.npz")
+        term_rate = d["episode_terminated"].mean()
+        first50 = d["episode_rewards"][:50].mean()
+        last50 = d["episode_rewards"][-50:].mean()
+        print(f"  {run_name}: termination_rate={term_rate:.1%}, "
+              f"first-50-ep mean reward={first50:.1f}, last-50-ep mean reward={last50:.1f}")
+    print()
+
+def shaping_ablation(results_dir="results"):
+    print("=== Reward-shaping ablation (greedy evaluation) ===")
+    d = np.load(f"{results_dir}/shaping_ablation.npz")
+    for label, mb_key, term_key in [
+        ("unshaped", "unshaped_downlinked_mb", "unshaped_terminated"),
+        ("shaped", "shaped_downlinked_mb", "shaped_terminated"),
+    ]:
+        mb = d[mb_key]
+        term = d[term_key]
+        print(f"  {label}: downlinked_mb={mb.mean():.0f} +/- {mb.std():.0f} (n={len(mb)} episodes), "
+              f"termination_rate={term.mean():.1%}")
+
+    print("  --- cross-check against eval_stats_{shaped,unshaped}.npz ---")
+    for run_name in ["shaped", "unshaped"]:
+        d2 = np.load(f"{results_dir}/eval_stats_{run_name}.npz")
+        print(f"  {run_name}: mean_reward={float(d2['mean_reward']):.2f} +/- "
+              f"{float(d2['std_reward']):.2f} (n={len(d2['rewards'])} episodes), "
+              f"termination_rate={d2['terminated'].mean():.1%}")
+    print()
 
 
+def sensitivity_sweep(results_dir="results", sweep_filename="sensitivity_sweep.npz"):
+    print("=== Environment/mission-parameter sensitivity sweep ===")
+    d = np.load(f"{results_dir}/{sweep_filename}")
+    key_pattern = re.compile(r"^(.+)_(-?\d+(?:\.\d+)?)_seed(\d+)__(.+)$")
 
-from train import train
+    grouped = {}
+    for key in d.files:
+        m = key_pattern.match(key)
+        if m is None:
+            continue
+        name, value_str, seed_str, stat_name = m.groups()
+        value = float(value_str)
+        seed = int(seed_str)
+        grouped.setdefault(name, {}).setdefault(value, {}).setdefault(seed, {})[stat_name] = d[key]
 
-agent, _ = train(num_episodes=300, seed=42, run_name="calibration")
+    for name in sorted(grouped.keys()):
+        print(f"\n  --- {name} ---")
+        for value in sorted(grouped[name].keys()):
+            seeds = grouped[name][value]
+            seed_ids = sorted(seeds.keys())
+            mean_rewards = [float(seeds[s]["mean_reward"]) for s in seed_ids]
+            term_fracs = [float(seeds[s]["terminated"].mean()) for s in seed_ids]
 
-sc = SpacecraftParams()
-env = SpacecraftSchedulerEnv(OrbitParams(), GroundStationParams(), sc,
-                             RewardParams(), TrainingParams())
+            reward_across_seeds = np.mean(mean_rewards)
+            reward_std_across_seeds = np.std(mean_rewards)
+            term_across_seeds = np.mean(term_fracs)
+            term_std_across_seeds = np.std(term_fracs)
 
-max_buffer, mean_buffer, imaging_duty, downlink_duty, full_frac, downlinked = [], [], [], [], [], []
+            print(f"    value={value}: "
+                  f"reward={reward_across_seeds:.1f} +/- {reward_std_across_seeds:.1f} (across {len(seed_ids)} seeds), "
+                  f"termination_rate={term_across_seeds:.1%} +/- {term_std_across_seeds:.1%}")
+            print(f"      per-seed reward:      {[round(x, 1) for x in mean_rewards]}")
+            print(f"      per-seed termination: {[f'{x:.0%}' for x in term_fracs]}")
 
-for i in range(20):
-    obs, info = env.reset(seed=500 + i)
-    terminated = truncated = False
-    buf, img, dwn, total_mb, terminated_flags = [], [], [], 0.0, []
+    print()
 
-    while not (terminated or truncated):
-        geom = env.propagator.get_geometry(env.t)
-        mask = env.get_action_mask(geom["is_eclipse"])
-        action = agent.select_action(obs, mask, greedy=True)
-        obs, reward, terminated, truncated, info = env.step(action)
-
-        buf.append(env.buffer_mb / sc.buffer_capacity_mb)
-        img.append(info["imaging_active"])
-        dwn.append(info["downlink_active"])
-        total_mb += info["data_downlinked_mb"]
-
-    buf, img, dwn = np.array(buf), np.array(img), np.array(dwn)
-    max_buffer.append(buf.max())
-    mean_buffer.append(buf.mean())
-    full_frac.append((buf > 0.99).mean())
-    imaging_duty.append(img.mean())
-    downlink_duty.append(dwn.mean())
-    downlinked.append(total_mb)
-    terminated_flags.append(terminated)
-
-print(f"buffer peak (fraction):   mean={np.mean(max_buffer):.3f}, "
-      f"min={np.min(max_buffer):.3f}, max={np.max(max_buffer):.3f}")
-print(f"buffer mean (fraction):   {np.mean(mean_buffer):.3f}")
-print(f"steps spent at >99% full: {np.mean(full_frac):.2%}")
-print(f"imaging duty cycle:       {np.mean(imaging_duty):.2%}  (target ~15-20%)")
-print(f"downlink duty cycle:      {np.mean(downlink_duty):.2%}  (contact windows are ~2% of the day)")
-print(f"data downlinked per day:  {np.mean(downlinked):.0f} Mb  (theoretical max ~75000)")
-print(f"termination rate (hard battery floor): {np.mean(terminated_flags):.1%}")
+if __name__ == "__main__":
+    print("\nShaped (0.00005):")
+    true_downlinked_data("checkpoints/final_model_shaped.pt")  
+    print("Unshaped (0.0):")
+    true_downlinked_data("checkpoints/final_model_unshaped.pt")
+    print('\n')
+    training_termination_rates()
+    shaping_ablation()
+    sensitivity_sweep()

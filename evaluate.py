@@ -22,8 +22,8 @@ from environment import SpacecraftSchedulerEnv, OBS_DIM
 from agent import DQNAgent
 from train import train, CHECKPOINT_DIR, RESULTS_DIR
 
-run_name = "shaped"  # run name for saving results
-load_file_name = f"final_model_{run_name}.pt"  # default checkpoint to load for evaluation
+run_name = "6_seeds"  # run name for saving results
+load_file_name = f"final_model_shaped.pt"  # default checkpoint to load for evaluation
 
 def load_agent(checkpoint_path: str, rl_params: RLParams = None) -> DQNAgent:
     """Loads a trained Q-network into a DQNAgent, ready for greedy evaluation"""
@@ -189,7 +189,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--sweep", action="store_true",
-                         help="also run the full sensitivity sweep (slow)") # about 15 hr runtime
+                         help="also run the full sensitivity sweep (slow)") # about 10 hr runtime
     args = parser.parse_args()
 
     train_params = TrainingParams()
@@ -228,7 +228,7 @@ if __name__ == "__main__":
                 "setter": lambda target, v: setattr(target, "battery_health_range", (v, 1.0)),
             },
         ]
-        sweep_results = run_sensitivity_sweep(param_specs, n_seeds=3, num_episodes=500, n_eval_episodes=20)
+        sweep_results = run_sensitivity_sweep(param_specs, n_seeds=6, num_episodes=500, n_eval_episodes=20)
         save_sweep_results(sweep_results, os.path.join(RESULTS_DIR, f"sensitivity_sweep_{run_name}.npz"))
         print(f"\nSweep results saved to {RESULTS_DIR}/sensitivity_sweep_{run_name}.npz")
     else:
