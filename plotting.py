@@ -151,17 +151,22 @@ def plot_shaping_comparison(comparison_path, output_path, show=False):
 def plot_sensitivity_sweep(sensitivity_path, output_path, show=False):
     data = np.load(sensitivity_path)
     key_pattern = re.compile(r"^(.+)_(-?\d+(?:\.\d+)?)_seed(\d+)__(.+)$")
+
     grouped = {}
+    grouped_term = {}
+
     for key in data.files:
         m = key_pattern.match(key)
         if m is None:
             continue
         name, value_str, seed_str, stat_name = m.groups()
-        if stat_name != "mean_reward":
-            continue  # only needs the per run mean here, std_reward was within run, not across the seed
         value = float(value_str)
         seed = int(seed_str)
-        grouped.setdefault(name, {}).setdefault(value, {})[seed] = float(data[key])
+
+        if stat_name == "mean_reward":
+            grouped.setdefault(name, {}).setdefault(value, {})[seed] = float(data[key])
+        elif stat_name == "terminated":
+            grouped_term.setdefault(name, {}).setdefault(value, {})[seed] = float(np.mean(data[key]))
 
     param_names = sorted(grouped.keys())
     n_params = len(param_names)
@@ -176,12 +181,30 @@ def plot_sensitivity_sweep(sensitivity_path, output_path, show=False):
         values = sorted(grouped[name].keys())
         means = []
         stds = []
+        term_rates = []
         for v in values:
             seed_means = np.array(list(grouped[name][v].values()))
             means.append(seed_means.mean())
             stds.append(seed_means.std())
 
+            if name in grouped_term and v in grouped_term[name]:
+                seed_term_rates = np.array(list(grouped_term[name][v].values()))
+                term_rates.append(seed_term_rates.mean())
+            else:
+                term_rates.append(None)
+
+        ax.margins(y=0.25)
         ax.errorbar(values, means, yerr=stds, marker="o", capsize=4, color="tab:blue")
+
+        for v, m, s, term_rate in zip(values, means, stds, term_rates):
+            if term_rate is None:
+                continue
+            ax.annotate(
+                f"{term_rate:.0%} term.",
+                xy=(v, m + s), xytext=(0, 6), textcoords="offset points",
+                ha="center", fontsize=8, color="dimgray",
+            )
+
         ax.set_xlabel(name)
         ax.set_ylabel("Mean reward (across seeds)")
         ax.set_title(name)

@@ -66,7 +66,7 @@ def shaping_ablation(results_dir="results"):
     print()
 
 
-def sensitivity_sweep(results_dir="results", sweep_filename="sensitivity_sweep.npz"):
+def sensitivity_sweep(results_dir="results", sweep_filename="sensitivity_sweep_6_seeds.npz"):
     print("=== Environment/mission-parameter sensitivity sweep ===")
     d = np.load(f"{results_dir}/{sweep_filename}")
     key_pattern = re.compile(r"^(.+)_(-?\d+(?:\.\d+)?)_seed(\d+)__(.+)$")
