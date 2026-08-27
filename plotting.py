@@ -194,10 +194,10 @@ def plot_sensitivity_sweep(sensitivity_path, output_path, show=False):
 
 
 if __name__ == "__main__":
-    plot_rewards("results/training_metrics_unshaped.npz", "plot_results/training_progress_unshaped.pdf", roll=50, show=False)
-    plot_rewards("results/training_metrics_shaped.npz", "plot_results/training_progress_shaped.pdf", roll=50, show=False)
-    plot_orbit_geometry("plot_results/orbit_geometry_check.pdf", n_orbits=15, show=False)
-    plot_episode_trajectory("results/example_trajectory_unshaped.npz", "plot_results/example_trajectory_unshaped.pdf", battery_safety_floor_frac=SpacecraftParams().battery_safety_floor_frac, battery_health_hard_floor=SpacecraftParams().battery_health_hard_floor, show=True)
-    plot_episode_trajectory("results/example_trajectory_shaped.npz", "plot_results/example_trajectory_shaped.pdf", battery_safety_floor_frac=SpacecraftParams().battery_safety_floor_frac, battery_health_hard_floor=SpacecraftParams().battery_health_hard_floor, show=True)
-    plot_shaping_comparison("results/shaping_ablation.npz", "plot_results/shaping_comparison.pdf", show=True)
-    plot_sensitivity_sweep("results/sensitivity_sweep.npz", "plot_results/sensitivity_sweep.pdf", show=True)
+    #plot_rewards("results/training_metrics_unshaped.npz", "plot_results/training_progress_unshaped.pdf", roll=50, show=False)
+    #plot_rewards("results/training_metrics_shaped.npz", "plot_results/training_progress_shaped.pdf", roll=50, show=False)
+    #plot_orbit_geometry("plot_results/orbit_geometry_check.pdf", n_orbits=15, show=False)
+    #plot_episode_trajectory("results/example_trajectory_unshaped.npz", "plot_results/example_trajectory_unshaped.pdf", battery_safety_floor_frac=SpacecraftParams().battery_safety_floor_frac, battery_health_hard_floor=SpacecraftParams().battery_health_hard_floor, show=True)
+    #plot_episode_trajectory("results/example_trajectory_shaped.npz", "plot_results/example_trajectory_shaped.pdf", battery_safety_floor_frac=SpacecraftParams().battery_safety_floor_frac, battery_health_hard_floor=SpacecraftParams().battery_health_hard_floor, show=True)
+    #plot_shaping_comparison("results/shaping_ablation.npz", "plot_results/shaping_comparison.pdf", show=True)
+    plot_sensitivity_sweep("results/sensitivity_sweep_6_seeds.npz", "plot_results/sensitivity_sweep.pdf", show=True)
